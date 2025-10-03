@@ -13,11 +13,12 @@ from networks.testnet.baseline import BASELINE
 from networks.testnet.baseline_rescbam import BASELINE_RESCBAM
 from networks.testnet.baseline_inceptionnext import BASELINE_INCEPTIONNEXT
 from networks.testnet.testnet import TESTNET
+from networks.fct.fct import FCT
 
 
 def network(model_name, args):
-    print(f'model: {model_name}')
-    if model_name == 'unet3d':
+    print(f"model: {model_name}")
+    if model_name == "unet3d":
         return UNet(
             spatial_dims=3,
             in_channels=args.in_channels,
@@ -25,42 +26,42 @@ def network(model_name, args):
             channels=(64, 128, 256, 256),
             strides=(2, 2, 2),
             num_res_units=0,
-            act='RELU',
-            norm='BATCH'
+            act="RELU",
+            norm="BATCH",
         ).to(args.device)
 
-    elif model_name == 'attention_unet':
+    elif model_name == "attention_unet":
         return AttentionUnet(
-          spatial_dims=3,
-          in_channels=args.in_channels,
-          out_channels=args.out_channels,
-          channels=(32, 64, 128, 256),
-          strides=(2, 2, 2),
+            spatial_dims=3,
+            in_channels=args.in_channels,
+            out_channels=args.out_channels,
+            channels=(32, 64, 128, 256),
+            strides=(2, 2, 2),
         ).to(args.device)
-    
-    elif model_name == 'vnet':
+
+    elif model_name == "vnet":
         return VNet(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
         ).to(args.device)
-    
-    elif model_name == 'cotr':
-        '''
-        CAUTION: if deep_supervision is True mean network output will be 
-        a list e.x. [result, ds0, ds1, ds2], so loss func 
+
+    elif model_name == "cotr":
+        """
+        CAUTION: if deep_supervision is True mean network output will be
+        a list e.x. [result, ds0, ds1, ds2], so loss func
         should be use CoTr deep supervision loss.
-        '''
-        # TODO: deep_supervision 
+        """
+        # TODO: deep_supervision
         return CoTr(
-            norm_cfg='IN',
-            activation_cfg='LeakyReLU',
+            norm_cfg="IN",
+            activation_cfg="LeakyReLU",
             img_size=(args.roi_x, args.roi_y, args.roi_z),
             num_classes=args.out_channels,
             weight_std=False,
-            deep_supervision=False
+            deep_supervision=False,
         ).to(args.device)
 
-    elif model_name == 'unetr':
+    elif model_name == "unetr":
         return UNETR(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -75,7 +76,7 @@ def network(model_name, args):
             dropout_rate=0.0,
         ).to(args.device)
 
-    elif model_name == 'swinunetr':
+    elif model_name == "swinunetr":
         return SwinUNETR(
             img_size=(args.roi_x, args.roi_y, args.roi_z),
             in_channels=args.in_channels,
@@ -83,21 +84,20 @@ def network(model_name, args):
             feature_size=48,
             use_checkpoint=True,
         ).to(args.device)
-    
-    
-    elif model_name == 'unetr_pp':
+
+    elif model_name == "unetr_pp":
         return UNETR_PP(
-          in_channels=args.in_channels,
-          out_channels=args.out_channels,
-          img_size=[args.roi_x, args.roi_y, args.roi_z],
-          feature_size=12,
-          num_heads=4,
-          depths=[3, 3, 3, 3],
-          dims=[24, 48, 96, 192],
-          do_ds=False,
+            in_channels=args.in_channels,
+            out_channels=args.out_channels,
+            img_size=[args.roi_x, args.roi_y, args.roi_z],
+            feature_size=12,
+            num_heads=4,
+            depths=[3, 3, 3, 3],
+            dims=[24, 48, 96, 192],
+            do_ds=False,
         ).to(args.device)
 
-    elif model_name == 'uxnet':
+    elif model_name == "uxnet":
         return UXNET(
             in_chans=args.in_channels,
             out_chans=args.out_channels,
@@ -107,55 +107,55 @@ def network(model_name, args):
             layer_scale_init_value=1e-6,
             spatial_dims=3,
         ).to(args.device)
-    
-    elif model_name == 'unest':
+
+    elif model_name == "unest":
         return UNesT(
             img_size=(args.roi_x, args.roi_y, args.roi_z),
             in_channels=args.in_channels,
-            out_channels=args.out_channels
+            out_channels=args.out_channels,
         ).to(args.device)
-    
-    elif model_name == 'DynUNet':
+
+    elif model_name == "DynUNet":
         return DynUNet(
             spatial_dims=3,
             in_channels=args.in_channels,
             out_channels=args.out_channels,
-            kernel_size=[[3,3,3], [3,3,3], [3,3,3], [3,3,3], [3,3,3]],
-            strides=[[1,1,1], [2,2,2], [2,2,2], [2,2,2], [2,2,2]],
-            upsample_kernel_size=[[2,2,2], [2,2,2], [2,2,2], [2,2,2]],
-            filters=[16, 32, 64, 128, 256]
+            kernel_size=[[3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3]],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            upsample_kernel_size=[[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            filters=[16, 32, 64, 128, 256],
         ).to(args.device)
-    
+
     # -----------------------------------------------------------------------------------------------------
     # cardiac segment netowrks
     # -----------------------------------------------------------------------------------------------------
-    elif model_name == 'dense_vox_net':
+    elif model_name == "dense_vox_net":
         return DenseVoxelNet(
-            in_channels=args.in_channels, 
-            classes=args.out_channels
+            in_channels=args.in_channels, classes=args.out_channels
         ).to(args.device)
-    
+
     # -----------------------------------------------------------------------------------------------------
     # 2d medical image segment netowrks
     # -----------------------------------------------------------------------------------------------------
-    elif model_name == 'transunet':
-        vit_name = 'R50-ViT-B_16'
+    elif model_name == "transunet":
+        vit_name = "R50-ViT-B_16"
         img_size = args.roi_x
         vit_patches_size = 16
         config_vit = CONFIGS_ViT_seg[vit_name]
         config_vit.n_classes = args.out_channels
         config_vit.n_skip = 3
-        config_vit.patches.grid = (int(img_size / vit_patches_size), int(img_size / vit_patches_size))
+        config_vit.patches.grid = (
+            int(img_size / vit_patches_size),
+            int(img_size / vit_patches_size),
+        )
         return ViT_seg(
-          config_vit, 
-          img_size=img_size, 
-          num_classes=config_vit.n_classes
+            config_vit, img_size=img_size, num_classes=config_vit.n_classes
         ).to(args.device)
-    
+
     # -----------------------------------------------------------------------------------------------------
     # unetcnx exp netowrks
     # -----------------------------------------------------------------------------------------------------
-    elif model_name == 'unetcnx_a1':
+    elif model_name == "unetcnx_a1":
         return UNETCNX_A1(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -169,13 +169,13 @@ def network(model_name, args):
             is_conv_stem=args.is_conv_stem,
             skip_encoder_name=args.skip_encoder_name,
             deep_sup=args.deep_sup,
-            first_feature_size_half=args.first_feature_size_half
-          ).to(args.device)
-    
+            first_feature_size_half=args.first_feature_size_half,
+        ).to(args.device)
+
     # -----------------------------------------------------------------------------------------------------
     # testnet exp netowrks
     # -----------------------------------------------------------------------------------------------------
-    elif model_name == 'testnet':
+    elif model_name == "testnet":
         return TESTNET(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -189,10 +189,10 @@ def network(model_name, args):
             is_conv_stem=args.is_conv_stem,
             skip_encoder_name=args.skip_encoder_name,
             deep_sup=args.deep_sup,
-            first_feature_size_half=args.first_feature_size_half
-          ).to(args.device)
-    
-    elif model_name == 'baseline':
+            first_feature_size_half=args.first_feature_size_half,
+        ).to(args.device)
+
+    elif model_name == "baseline":
         return BASELINE(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -204,12 +204,12 @@ def network(model_name, args):
             drop_path_rate=args.drop_rate,
             use_init_weights=args.use_init_weights,
             is_conv_stem=args.is_conv_stem,
-            skip_encoder_name=args.skip_encoder_name,#di, cbam, args.skip_encoder_name
+            skip_encoder_name=args.skip_encoder_name,  # di, cbam, args.skip_encoder_name
             deep_sup=args.deep_sup,
-            first_feature_size_half=args.first_feature_size_half
-          ).to(args.device)
-    
-    elif model_name == 'baseline_cbam':
+            first_feature_size_half=args.first_feature_size_half,
+        ).to(args.device)
+
+    elif model_name == "baseline_cbam":
         return BASELINE_RESCBAM(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -221,12 +221,12 @@ def network(model_name, args):
             drop_path_rate=args.drop_rate,
             use_init_weights=args.use_init_weights,
             is_conv_stem=args.is_conv_stem,
-            skip_encoder_name=args.skip_encoder_name,#di, cbam, args.skip_encoder_name
+            skip_encoder_name=args.skip_encoder_name,  # di, cbam, args.skip_encoder_name
             deep_sup=args.deep_sup,
-            first_feature_size_half=args.first_feature_size_half
-          ).to(args.device)
-    
-    elif model_name == 'baseline_inceptionnext':
+            first_feature_size_half=args.first_feature_size_half,
+        ).to(args.device)
+
+    elif model_name == "baseline_inceptionnext":
         return BASELINE_INCEPTIONNEXT(
             in_channels=args.in_channels,
             out_channels=args.out_channels,
@@ -238,12 +238,19 @@ def network(model_name, args):
             drop_path_rate=args.drop_rate,
             use_init_weights=args.use_init_weights,
             is_conv_stem=args.is_conv_stem,
-            skip_encoder_name=args.skip_encoder_name,#di, cbam, args.skip_encoder_name
+            skip_encoder_name=args.skip_encoder_name,  # di, cbam, args.skip_encoder_name
             deep_sup=args.deep_sup,
-            first_feature_size_half=args.first_feature_size_half
-          ).to(args.device)
-    
-    
-    else:
-        raise ValueError(f'not found model name: {model_name}')
+            first_feature_size_half=args.first_feature_size_half,
+        ).to(args.device)
 
+    elif model_name == "fct":
+        return FCT(
+            in_channels=args.in_channels,
+            out_channels=args.out_channels,
+            feature_size=args.feature_size,
+            drop_rate=args.drop_rate,
+            deep_sup=args.deep_sup,
+        ).to(args.device)
+
+    else:
+        raise ValueError(f"not found model name: {model_name}")

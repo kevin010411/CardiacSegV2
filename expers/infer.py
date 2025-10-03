@@ -1,6 +1,7 @@
 import sys
+
 # set package path
-sys.path.append("/nfs/Workspace/CardiacSegV2")
+sys.path.append("/content/CardiacSegV2")
 
 import os
 from functools import partial
@@ -27,13 +28,14 @@ from expers.args import get_parser
 def main():
     args = get_parser(sys.argv[1:])
     main_worker(args)
-    
-    
+
+
 def is_deep_sup(checkpoint):
     for key in list(checkpoint["state_dict"].keys()):
-        if 'ds' in key:
+        if "ds" in key:
             return True
     return False
+
 
 def main_worker(args):
     # make dir
@@ -53,36 +55,34 @@ def main_worker(args):
     # check point
     if args.checkpoint is not None:
         checkpoint = torch.load(args.checkpoint, map_location="cpu")
-        
-        if is_deep_sup(checkpoint) and args.model_name != 'cotr':
+
+        if is_deep_sup(checkpoint) and args.model_name != "cotr":
             # load check point epoch and best acc
             print("Tag 'ds (deeply supervised)' found in state dict - fixing!")
             for key in list(checkpoint["state_dict"].keys()):
-                if 'ds' in key:
-                    checkpoint["state_dict"].pop(key) 
-        
+                if "ds" in key:
+                    checkpoint["state_dict"].pop(key)
+
         # load model
         model.load_state_dict(checkpoint["state_dict"])
-        
-        print(
-          "=> loaded checkpoint '{}')"\
-          .format(args.checkpoint)
-        )
+
+        print("=> loaded checkpoint '{}')".format(args.checkpoint))
 
     # inferer
-    keys = ['pred']
-    if args.data_name == 'mmwhs' or args.data_name == 'mmwhs2':
-        axcodes = 'LAS'
+    keys = ["pred"]
+    if args.data_name == "mmwhs" or args.data_name == "mmwhs2":
+        axcodes = "LAS"
     else:
-        axcodes = 'LPS'
+        axcodes = "LPS"
     # axcodes = 'RAS'
-    post_transform = Compose([
-        Orientationd(keys=keys, axcodes=axcodes),
-        ToNumpyd(keys=keys),
-        Restored(keys=keys, ref_image="image")
-    ])
-    
-    
+    post_transform = Compose(
+        [
+            Orientationd(keys=keys, axcodes=axcodes),
+            ToNumpyd(keys=keys),
+            Restored(keys=keys, ref_image="image"),
+        ]
+    )
+
     model_inferer = partial(
         sliding_window_inference,
         roi_size=[args.roi_x, args.roi_y, args.roi_z],
@@ -92,36 +92,29 @@ def main_worker(args):
     )
 
     # prepare data_dict
-    if args.data_dicts_json and args.data_name != 'mmwhs':
+    if args.data_dicts_json and args.data_name != "mmwhs":
         data_dicts = load_data_dict_json(args.data_dir, args.data_dicts_json)
-    elif args.data_dicts_json and args.data_name == 'mmwhs':
+    elif args.data_dicts_json and args.data_name == "mmwhs":
         data_dicts = load_json(args.data_dicts_json)
     else:
         if args.lbl_pth is not None:
-            data_dicts = [{
-                'image': args.img_pth,
-                'label': args.lbl_pth
-            }]
+            data_dicts = [{"image": args.img_pth, "label": args.lbl_pth}]
         else:
-            data_dicts = [{
-                'image': args.img_pth,
-            }]
+            data_dicts = [
+                {
+                    "image": args.img_pth,
+                }
+            ]
 
     # run infer
     for data_dict in data_dicts:
-        print('infer data:', data_dict)
-      
+        print("infer data:", data_dict)
+
         # load infer data
         data = get_infer_data(data_dict, args)
 
         # infer
-        run_infering(
-            model,
-            data,
-            model_inferer,
-            post_transform,
-            args
-        )
+        run_infering(model, data, model_inferer, post_transform, args)
 
 
 if __name__ == "__main__":
