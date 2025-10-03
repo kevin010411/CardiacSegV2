@@ -72,19 +72,19 @@ class Attention(nn.Module):
 
         if qkv == "q":
             x1 = F.relu(self.conv_q(x))
-            x1 = x1.permute(0, 2, 3, 1)
+            x1 = x1.permute(0, 2, 3, 4, 1)
             x1 = self.layernorm_q(x1)
-            proj = x1.permute(0, 3, 1, 2)
+            proj = x1.permute(0, 4, 1, 2, 3)
         elif qkv == "k":
             x1 = F.relu(self.conv_k(x))
-            x1 = x1.permute(0, 2, 3, 1)
+            x1 = x1.permute(0, 2, 3, 4, 1)
             x1 = self.layernorm_k(x1)
-            proj = x1.permute(0, 3, 1, 2)
+            proj = x1.permute(0, 4, 1, 2, 3)
         elif qkv == "v":
             x1 = F.relu(self.conv_v(x))
-            x1 = x1.permute(0, 2, 3, 1)
+            x1 = x1.permute(0, 2, 3, 4, 1)
             x1 = self.layernorm_v(x1)
-            proj = x1.permute(0, 3, 1, 2)
+            proj = x1.permute(0, 4, 1, 2, 3)
 
         return proj
 
@@ -96,22 +96,16 @@ class Attention(nn.Module):
         return q, k, v
 
     def forward(self, x):
+        B, C, D, H, W = x.shape
         q, k, v = self.forward_conv(x)
-        q = q.view(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
-        k = k.view(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
-        v = v.view(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
-        q = q.permute(0, 2, 1)
-        k = k.permute(0, 2, 1)
-        v = v.permute(0, 2, 1)
+
+        q = q.view(B, C, D * H * W).permute(0, 2, 1).contiguous()
+        k = k.view(B, C, D * H * W).permute(0, 2, 1).contiguous()
+        v = v.view(B, C, D * H * W).permute(0, 2, 1).contiguous()
         x1 = self.attention(query=q, value=v, key=k, need_weights=False)
 
         x1 = x1[0].permute(0, 2, 1)
-        x1 = x1.view(
-            x1.shape[0],
-            x1.shape[1],
-            np.sqrt(x1.shape[2]).astype(int),
-            np.sqrt(x1.shape[2]).astype(int),
-        )
+        x1 = x1.view(B, C, D, H, W)
         x1 = F.dropout(x1, self.proj_drop)
 
         return x1
@@ -153,9 +147,9 @@ class Transformer(nn.Module):
         x1 = self.attention_output(x)
         x1 = self.conv1(x1)
         x2 = torch.add(x1, x)
-        x3 = x2.permute(0, 2, 3, 1)
+        x3 = x2.permute(0, 2, 3, 4, 1)
         x3 = self.layernorm(x3)
-        x3 = x3.permute(0, 3, 1, 2)
+        x3 = x3.permute(0, 4, 1, 2, 3)
         x3 = self.wide_focus(x3)
         x3 = torch.add(x2, x3)
         return x3
@@ -214,24 +208,24 @@ class Block_encoder_bottleneck(nn.Module):
 
     def forward(self, x, scale_img="none"):
         if (self.blk == "first") or (self.blk == "bottleneck"):
-            x1 = x.permute(0, 2, 3, 1)
+            x1 = x.permute(0, 2, 3, 4, 1)
             x1 = self.layernorm(x1)
-            x1 = x1.permute(0, 3, 1, 2)
+            x1 = x1.permute(0, 4, 1, 2, 3)
             x1 = F.relu(self.conv1(x1))
             x1 = F.relu(self.conv2(x1))
             x1 = F.dropout(x1, 0.3)
-            x1 = F.max_pool3d(x1, (2, 2))
+            x1 = F.max_pool3d(x1, 2)
             out = self.trans(x1)
             # without skip
         elif (self.blk == "second") or (self.blk == "third") or (self.blk == "fourth"):
-            x1 = x.permute(0, 2, 3, 1)
+            x1 = x.permute(0, 2, 3, 4, 1)
             x1 = self.layernorm(x1)
-            x1 = x1.permute(0, 3, 1, 2)
+            x1 = x1.permute(0, 4, 1, 2, 3)
             x1 = torch.cat((F.relu(self.conv1(scale_img)), x1), axis=1)
             x1 = F.relu(self.conv2(x1))
             x1 = F.relu(self.conv3(x1))
             x1 = F.dropout(x1, 0.3)
-            x1 = F.max_pool3d(x1, (2, 2))
+            x1 = F.max_pool3d(x1, 2)
             out = self.trans(x1)
             # with skip
         return out
@@ -248,11 +242,12 @@ class Block_decoder(nn.Module):
         self.trans = Transformer(out_channels, att_heads, dpr)
 
     def forward(self, x, skip):
-        x1 = x.permute(0, 2, 3, 1)
+        x1 = x.permute(0, 2, 3, 4, 1)
         x1 = self.layernorm(x1)
-        x1 = x1.permute(0, 3, 1, 2)
+        x1 = x1.permute(0, 4, 1, 2, 3)
         x1 = self.upsample(x1)
         x1 = F.relu(self.conv1(x1))
+        breakpoint()
         x1 = torch.cat((skip, x1), axis=1)
         x1 = F.relu(self.conv2(x1))
         x1 = F.relu(self.conv3(x1))
@@ -272,9 +267,9 @@ class DS_out(nn.Module):
 
     def forward(self, x):
         x1 = self.upsample(x)
-        x1 = x1.permute(0, 2, 3, 1)
+        x1 = x1.permute(0, 2, 3, 4, 1)
         x1 = self.layernorm(x1)
-        x1 = x1.permute(0, 3, 1, 2)
+        x1 = x1.permute(0, 4, 1, 2, 3)
         x1 = F.relu(self.conv1(x1))
         x1 = F.relu(self.conv2(x1))
         out = torch.sigmoid(self.conv3(x1))
