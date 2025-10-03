@@ -3,6 +3,12 @@ from torch import nn
 import torch
 from torch.nn import functional as F
 
+"""
+It's the implementation of the FCT model in PyTorch.
+Paper name : The Fully Convolutional Transformer for Medical Image Segmentation
+link: https://github.com/Thanos-DB/FullyConvolutionalTransformer/tree/main
+"""
+
 
 class Attention(nn.Module):
     def __init__(
@@ -23,7 +29,7 @@ class Attention(nn.Module):
         self.num_heads = num_heads
         self.proj_drop = proj_drop
 
-        self.conv_q = nn.Conv2d(
+        self.conv_q = nn.Conv3d(
             channels,
             channels,
             kernel_size,
@@ -33,7 +39,7 @@ class Attention(nn.Module):
             groups=channels,
         )
         self.layernorm_q = nn.LayerNorm(channels, eps=1e-5)
-        self.conv_k = nn.Conv2d(
+        self.conv_k = nn.Conv3d(
             channels,
             channels,
             kernel_size,
@@ -43,7 +49,7 @@ class Attention(nn.Module):
             groups=channels,
         )
         self.layernorm_k = nn.LayerNorm(channels, eps=1e-5)
-        self.conv_v = nn.Conv2d(
+        self.conv_v = nn.Conv3d(
             channels,
             channels,
             kernel_size,
@@ -139,7 +145,7 @@ class Transformer(nn.Module):
             attention_bias=attention_bias,
         )
 
-        self.conv1 = nn.Conv2d(out_channels, out_channels, 3, 1, padding="same")
+        self.conv1 = nn.Conv3d(out_channels, out_channels, 3, 1, padding="same")
         self.layernorm = nn.LayerNorm(self.conv1.out_channels, eps=1e-5)
         self.wide_focus = Wide_Focus(out_channels, out_channels)
 
@@ -163,14 +169,14 @@ class Wide_Focus(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding="same")
-        self.conv2 = nn.Conv2d(
+        self.conv1 = nn.Conv3d(in_channels, out_channels, 3, 1, padding="same")
+        self.conv2 = nn.Conv3d(
             in_channels, out_channels, 3, 1, padding="same", dilation=2
         )
-        self.conv3 = nn.Conv2d(
+        self.conv3 = nn.Conv3d(
             in_channels, out_channels, 3, 1, padding="same", dilation=3
         )
-        self.conv4 = nn.Conv2d(in_channels, out_channels, 3, 1, padding="same")
+        self.conv4 = nn.Conv3d(in_channels, out_channels, 3, 1, padding="same")
 
     def forward(self, x):
         x1 = self.conv1(x)
@@ -196,14 +202,14 @@ class Block_encoder_bottleneck(nn.Module):
         self.blk = blk
         if (self.blk == "first") or (self.blk == "bottleneck"):
             self.layernorm = nn.LayerNorm(in_channels, eps=1e-5)
-            self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding="same")
-            self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding="same")
+            self.conv1 = nn.Conv3d(in_channels, out_channels, 3, 1, padding="same")
+            self.conv2 = nn.Conv3d(out_channels, out_channels, 3, 1, padding="same")
             self.trans = Transformer(out_channels, att_heads, dpr)
         elif (self.blk == "second") or (self.blk == "third") or (self.blk == "fourth"):
             self.layernorm = nn.LayerNorm(in_channels, eps=1e-5)
-            self.conv1 = nn.Conv2d(1, in_channels, 3, 1, padding="same")
-            self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding="same")
-            self.conv3 = nn.Conv2d(out_channels, out_channels, 3, 1, padding="same")
+            self.conv1 = nn.Conv3d(1, in_channels, 3, 1, padding="same")
+            self.conv2 = nn.Conv3d(out_channels, out_channels, 3, 1, padding="same")
+            self.conv3 = nn.Conv3d(out_channels, out_channels, 3, 1, padding="same")
             self.trans = Transformer(out_channels, att_heads, dpr)
 
     def forward(self, x, scale_img="none"):
@@ -214,7 +220,7 @@ class Block_encoder_bottleneck(nn.Module):
             x1 = F.relu(self.conv1(x1))
             x1 = F.relu(self.conv2(x1))
             x1 = F.dropout(x1, 0.3)
-            x1 = F.max_pool2d(x1, (2, 2))
+            x1 = F.max_pool3d(x1, (2, 2))
             out = self.trans(x1)
             # without skip
         elif (self.blk == "second") or (self.blk == "third") or (self.blk == "fourth"):
@@ -225,7 +231,7 @@ class Block_encoder_bottleneck(nn.Module):
             x1 = F.relu(self.conv2(x1))
             x1 = F.relu(self.conv3(x1))
             x1 = F.dropout(x1, 0.3)
-            x1 = F.max_pool2d(x1, (2, 2))
+            x1 = F.max_pool3d(x1, (2, 2))
             out = self.trans(x1)
             # with skip
         return out
@@ -236,9 +242,9 @@ class Block_decoder(nn.Module):
         super().__init__()
         self.layernorm = nn.LayerNorm(in_channels, eps=1e-5)
         self.upsample = nn.Upsample(scale_factor=2)
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding="same")
-        self.conv2 = nn.Conv2d(out_channels * 2, out_channels, 3, 1, padding="same")
-        self.conv3 = nn.Conv2d(out_channels, out_channels, 3, 1, padding="same")
+        self.conv1 = nn.Conv3d(in_channels, out_channels, 3, 1, padding="same")
+        self.conv2 = nn.Conv3d(out_channels * 2, out_channels, 3, 1, padding="same")
+        self.conv3 = nn.Conv3d(out_channels, out_channels, 3, 1, padding="same")
         self.trans = Transformer(out_channels, att_heads, dpr)
 
     def forward(self, x, skip):
@@ -260,9 +266,9 @@ class DS_out(nn.Module):
         super().__init__()
         self.upsample = nn.Upsample(scale_factor=2)
         self.layernorm = nn.LayerNorm(in_channels, eps=1e-5)
-        self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, padding="same")
-        self.conv2 = nn.Conv2d(in_channels, in_channels, 3, 1, padding="same")
-        self.conv3 = nn.Conv2d(in_channels, out_channels, 3, 1, padding="same")
+        self.conv1 = nn.Conv3d(in_channels, in_channels, 3, 1, padding="same")
+        self.conv2 = nn.Conv3d(in_channels, in_channels, 3, 1, padding="same")
+        self.conv3 = nn.Conv3d(in_channels, out_channels, 3, 1, padding="same")
 
     def forward(self, x):
         x1 = self.upsample(x)
@@ -288,7 +294,7 @@ class FCT(nn.Module):
         # attention heads and filters per block
         att_heads = [2, 2, 2, 2, 2, 2, 2, 2, 2]
         filters = [feature_size * (2**i) for i in range(4)] + [
-            feature_size * (2**i) for i in range(4, 0, -1)
+            feature_size * (2**i) for i in range(4, -1, -1)
         ]
 
         # number of blocks used in the model
@@ -302,7 +308,7 @@ class FCT(nn.Module):
         self.drp_out = drop_rate
 
         # Multi-scale input
-        self.scale_img = nn.AvgPool2d(2, 2)
+        self.scale_img = nn.AvgPool3d(2, 2)
 
         # model
         self.block_1 = Block_encoder_bottleneck(
@@ -378,7 +384,7 @@ def init_weights(m):
     """
     Initialize the weights
     """
-    if isinstance(m, nn.Conv2d):
+    if isinstance(m, nn.Conv3d):
         torch.nn.init.kaiming_normal(m.weight)
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
