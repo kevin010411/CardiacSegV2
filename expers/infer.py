@@ -56,7 +56,9 @@ def main_worker(args):
     if args.checkpoint is not None:
         checkpoint = torch.load(args.checkpoint, map_location="cpu")
 
-        if is_deep_sup(checkpoint) and args.model_name != "cotr":
+        if is_deep_sup(checkpoint) and (
+            args.model_name != "cotr" or args.model_name != "fct"
+        ):
             # load check point epoch and best acc
             print("Tag 'ds (deeply supervised)' found in state dict - fixing!")
             for key in list(checkpoint["state_dict"].keys()):
