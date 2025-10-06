@@ -247,7 +247,6 @@ class Block_decoder(nn.Module):
         x1 = x1.permute(0, 4, 1, 2, 3)
         x1 = self.upsample(x1)
         x1 = F.relu(self.conv1(x1))
-        breakpoint()
         x1 = torch.cat((skip, x1), axis=1)
         x1 = F.relu(self.conv2(x1))
         x1 = F.relu(self.conv3(x1))
